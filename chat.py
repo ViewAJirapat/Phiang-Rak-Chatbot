@@ -7,20 +7,21 @@ from langchain_community.llms import Ollama
 
 class Chatbot:
     def __init__(self) -> None:
-        # Load the Ollama model (replace "llava:13b" with your desired model)
-        self.llm = Ollama(model="llava:13b")
-        st.title("Flexible Q&A with llava:13b (Text or PDF)")
+        self.model_options = ["llava:13b", "aya:latest"]
+        self.selected_model = st.sidebar.selectbox("Select a model", self.model_options)
+        self.llm = Ollama(model=self.selected_model)
+        st.title(f"Flexible Q&A with Phiang-Rak : {self.selected_model}")
         self.textpage = ""
         self.prompt = ""
         self.previous_answers = []
 
     def _uploaded_file(self):
         if self.uploaded_file:
-            file_details = {
-                "filename": self.uploaded_file.name,
-                "filetype": self.uploaded_file.type,
-                "filesize": self.uploaded_file.size
-            }
+            # file_details = {
+            #     "filename": self.uploaded_file.name,
+            #     "filetype": self.uploaded_file.type,
+            #     "filesize": self.uploaded_file.size
+            # }
             # st.write(file_details)
             if self.uploaded_file.type == "application/pdf":
                 reader = PdfReader(self.uploaded_file)
@@ -33,8 +34,10 @@ class Chatbot:
         if self.text_prompt:
             if self.previous_answers:
                 self.prompt = f"{self.text_prompt} {' '.join(self.previous_answers)} I would like you to help answer my question with the information mentioned above. The question is: {self.text_prompt}"
-            else:
+            elif self.uploaded_file:
                 self.prompt = f"{self.textpage} I would like you to help answer my question with the information mentioned above. The question is: {self.text_prompt}"
+            else:
+                self.prompt = self.text_prompt
         else:
             self.prompt = f"{self.textpage} So I would like you to help summarize what I have said above."
 
@@ -44,7 +47,7 @@ class Chatbot:
         self.text_prompt = st.text_input("Enter your text prompt or question:", key="input")
 
         if st.button("Send"):
-            if not self.text_prompt or not self.uploaded_file:
+            if not self.text_prompt and not self.uploaded_file:
                 st.warning("Please enter a text prompt or upload a PDF.")
             else:
                 self._uploaded_file()
@@ -64,7 +67,7 @@ class Chatbot:
             if chat["role"] == "user":
                 st.write(f"**You:** {chat['content']}")
             else:
-                st.write(f"**Assistant:** {chat['content']}")
+                st.write(f"**Phiang-Rak:** {chat['content']}")
 
 
 if __name__ == "__main__":
