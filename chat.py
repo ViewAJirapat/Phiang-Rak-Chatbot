@@ -1,7 +1,7 @@
 #streamlit run chat.py
 
 import streamlit as st
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader
 from langchain_community.llms import Ollama
 
 
@@ -12,6 +12,7 @@ class Chatbot():
         st.title("Flexible Q&A with llava:13b (Text or PDF)")
         self.textpage = ""
         self.prompt = ""
+        self.previous_answers = []
         
 
 
@@ -30,7 +31,11 @@ class Chatbot():
 
     def _prompt(self):
         if self.text_prompt:
-            self.prompt = self.textpage + "I would like you to help answer my question with the information mentioned above. The question is : " + self.text_prompt
+
+            if self.previous_answers:
+                self.prompt = f"{self.text_prompt}" + " ".join(self.previous_answers) + f"I would like you to help answer my question with the information mentioned above. The question is : " + f"{self.text_prompt}"
+            else:
+                self.prompt = f"{self.textpage}" + "I would like you to help answer my question with the information mentioned above. The question is : " + f"{self.text_prompt}"
         else:
             self.prompt = f"{self.textpage}" + "So I would like to help you summarize what I have said above."
 
@@ -42,10 +47,13 @@ class Chatbot():
             self._prompt()
             if self.prompt:  # Ensure prompt is not empty after processing
                 with st.spinner("Generating response..."):
-                    st.write(self.llm.invoke(self.prompt, stop=['<|eot_id|>']))
+                    response = st.write(self.llm.invoke(self.prompt, stop=['<|eot_id|>']))
+                    st.write(response)
+                    self.previous_answers.append(response)
             else:
                 st.warning("Please enter a text prompt or upload a PDF.")
 
 
-cb = Chatbot()
-cb.generate()
+if __name__ == "__main__":
+    cb = Chatbot()
+    cb.generate()
