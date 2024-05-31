@@ -5,53 +5,66 @@ from pypdf import PdfReader
 from langchain_community.llms import Ollama
 
 
-class Chatbot():
+class Chatbot:
     def __init__(self) -> None:
-        # Load the Ollama model (replace "aya:latest" with your desired model)
+        # Load the Ollama model (replace "llava:13b" with your desired model)
         self.llm = Ollama(model="llava:13b")
         st.title("Flexible Q&A with llava:13b (Text or PDF)")
         self.textpage = ""
         self.prompt = ""
         self.previous_answers = []
-        
-
 
     def _uploaded_file(self):
         if self.uploaded_file:
-            file_details = {"filename": self.uploaded_file.name, "filetype":self.uploaded_file.type,
-            "filesize":self.uploaded_file.size}
-            st.write(file_details)
+            file_details = {
+                "filename": self.uploaded_file.name,
+                "filetype": self.uploaded_file.type,
+                "filesize": self.uploaded_file.size
+            }
+            # st.write(file_details)
             if self.uploaded_file.type == "application/pdf":
                 reader = PdfReader(self.uploaded_file)
                 pagecount = len(reader.pages)
                 for page in range(pagecount):
                     getpage = reader.pages[page]
-                    self.textpage = getpage.extract_text()
-                    # st.write(textpage)
+                    self.textpage += getpage.extract_text()
 
     def _prompt(self):
         if self.text_prompt:
-
             if self.previous_answers:
-                self.prompt = f"{self.text_prompt}" + " ".join(self.previous_answers) + f"I would like you to help answer my question with the information mentioned above. The question is : " + f"{self.text_prompt}"
+                self.prompt = f"{self.text_prompt} {' '.join(self.previous_answers)} I would like you to help answer my question with the information mentioned above. The question is: {self.text_prompt}"
             else:
-                self.prompt = f"{self.textpage}" + "I would like you to help answer my question with the information mentioned above. The question is : " + f"{self.text_prompt}"
+                self.prompt = f"{self.textpage} I would like you to help answer my question with the information mentioned above. The question is: {self.text_prompt}"
         else:
-            self.prompt = f"{self.textpage}" + "So I would like to help you summarize what I have said above."
+            self.prompt = f"{self.textpage} So I would like you to help summarize what I have said above."
 
     def generate(self):
-        self.text_prompt = st.text_area("Enter your text prompt or question : ", height=100)
-        self.uploaded_file = st.file_uploader(label="Upload a PDF (optional):", type="PDF")
-        if st.button("Generate"):
-            self._uploaded_file()
-            self._prompt()
-            if self.prompt:  # Ensure prompt is not empty after processing
-                with st.spinner("Generating response..."):
-                    response = st.write(self.llm.invoke(self.prompt, stop=['<|eot_id|>']))
-                    st.write(response)
-                    self.previous_answers.append(response)
-            else:
+        st.sidebar.header("Chat with llava:13b")
+        self.uploaded_file = st.sidebar.file_uploader(label="Upload a PDF (optional):", type="pdf")
+        self.text_prompt = st.text_input("Enter your text prompt or question:", key="input")
+
+        if st.button("Send"):
+            if not self.text_prompt or not self.uploaded_file:
                 st.warning("Please enter a text prompt or upload a PDF.")
+            else:
+                self._uploaded_file()
+                self._prompt()
+                if self.prompt:
+                    with st.spinner("Generating response..."):
+                        response = self.llm.invoke(self.prompt, stop=['<|eot_id|>'])
+                        self.previous_answers.append(response)
+                        st.session_state.chat_history.append({"role": "user", "content": self.text_prompt})
+                        st.session_state.chat_history.append({"role": "assistant", "content": response})
+                    
+
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = []
+
+        for chat in st.session_state.chat_history:
+            if chat["role"] == "user":
+                st.write(f"**You:** {chat['content']}")
+            else:
+                st.write(f"**Assistant:** {chat['content']}")
 
 
 if __name__ == "__main__":
